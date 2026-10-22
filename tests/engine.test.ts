@@ -1,0 +1,7 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {evaluate,parseRun} from '../src/lib/engine.ts';
+for(const suite of ['core','data','reliability'] as const)test(`Atlas satisfies all ${suite} assertions and naive candidates expose failures`,()=>{const run=evaluate(suite,['atlas','swift','baseline'],'Suite check');assert.equal(run.results[0].passed,16);assert.equal(run.results[0].total,16);assert(run.results[2].passed<16);assert(run.results.every(r=>r.durationMs>=0));assert(run.results.every(r=>r.tasks.length===4));});
+test('Malformed suites and duplicate agents cannot run',()=>{assert.throws(()=>evaluate('unknown' as never,['atlas']));assert.throws(()=>evaluate('core',['atlas','atlas']));assert.throws(()=>evaluate('core',[]));assert.throws(()=>evaluate('core',['unknown' as never]));});
+test('Portable export imports with fresh identity and honest source',()=>{const run=evaluate('data',['atlas','baseline']);const imported=parseRun(JSON.parse(JSON.stringify(run)));assert.notEqual(imported.id,run.id);assert.equal(imported.source,'imported');assert.deepEqual(imported.results,run.results);});
+test('Tampered totals, wrong-suite tasks and malformed checks are rejected',()=>{const fresh=()=>JSON.parse(JSON.stringify(evaluate('core',['atlas'])));const total=fresh();total.results[0].passed=2;assert.throws(()=>parseRun(total));const task=fresh();task.results[0].tasks[0].taskId='retry';assert.throws(()=>parseRun(task));const checks=fresh();checks.results[0].tasks[0].checks[0].passed='yes';assert.throws(()=>parseRun(checks));});
